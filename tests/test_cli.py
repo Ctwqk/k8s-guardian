@@ -36,7 +36,7 @@ def test_once_against_the_fake_backend(monkeypatch, tmp_path, capsys):
     report = json.loads(out[out.index("{") :])
     outcomes = {d["target"]: d["outcome"] for d in report["decisions"]}
     assert outcomes == {
-        "demo/batch-worker": "skipped",
+        "demo/batch-worker": "blocked_not_actionable",
         "demo/crashy-api": "dry_run",
         "demo/payments-executor": "blocked_policy",
     }

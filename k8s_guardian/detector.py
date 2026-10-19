@@ -122,7 +122,8 @@ class Detector:
                     "oom_killed",
                     Severity.HIGH,
                     f"Pod {pod.name} OOMKilled, {pod.restarts} restarts",
-                    actionable=True,
+                    # Needs a memory-limit change, which the guardian never makes: human only.
+                    actionable=False,
                 )
             )
         elif pod.waiting_reason == "CrashLoopBackOff" or self._crashed_repeatedly(pod):

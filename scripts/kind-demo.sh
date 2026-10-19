@@ -77,7 +77,7 @@ for r in json.load(open(sys.argv[1]))["actions"]:
 done = (
     {"executed", "repeat_failure"} <= set(by.get("demo/crashy-api", []))
     and "blocked_policy" in by.get("demo/payments-executor", [])
-    and "skipped" in by.get("demo/batch-worker", [])
+    and "blocked_not_actionable" in by.get("demo/batch-worker", [])
 )
 sys.exit(0 if done else 1)
 PY

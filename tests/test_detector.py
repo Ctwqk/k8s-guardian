@@ -41,6 +41,7 @@ def test_oom_killed_beats_crash_loop_when_last_termination_was_oom():
     pod = make_pod("api-1", deploy="api", status="CrashLoopBackOff", restarts=3, last_terminated_reason="OOMKilled")
     [a] = detect([pod])
     assert a.rule == "oom_killed"
+    assert not a.actionable  # a restart cannot raise a memory limit: humans only
 
 
 def test_old_oom_on_a_healthy_pod_is_not_an_anomaly():

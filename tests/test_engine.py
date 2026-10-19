@@ -393,3 +393,14 @@ async def test_status_reports_cooldowns_and_budget(make_guardian):
 
 async def test_the_default_rule_analyzer_is_what_the_fixture_uses(make_guardian):
     assert isinstance(make_guardian().analyzer, RuleAnalyzer)
+
+
+async def test_oomkilled_workloads_are_escalated_not_restarted_even_if_the_model_insists(make_guardian):
+    pod = make_pod("api-1", deploy="api", status="CrashLoopBackOff", restarts=5, last_terminated_reason="OOMKilled")
+    cluster = FakeCluster(pods=[pod], logs={("demo", "api-1"): "loading dataset"})
+    notifier = RecordingNotifier()
+    analyzer = ScriptedAnalyzer(restart_decision())
+    report = await make_guardian(cluster, analyzer=analyzer, notifier=notifier, dry_run=False).poll_once()
+    assert outcomes(report) == {"demo/api": "blocked_not_actionable"}
+    assert cluster.restarts == [] and analyzer.decide_calls == []  # not even asked
+    assert [n["rule"] for n in notifier.sent] == ["oom_killed"]
