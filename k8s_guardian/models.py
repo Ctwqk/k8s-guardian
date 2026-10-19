@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from enum import StrEnum
 
@@ -121,6 +122,8 @@ class Decision(BaseModel):
         try:
             f = float(v)  # type: ignore[arg-type]
         except (TypeError, ValueError):
+            return 0.0
+        if not math.isfinite(f):  # NaN would slip through min/max as 1.0
             return 0.0
         return max(0.0, min(1.0, f))
 

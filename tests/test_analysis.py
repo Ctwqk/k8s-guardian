@@ -150,6 +150,12 @@ async def test_llm_confidence_is_clamped_and_garbage_confidence_is_zero():
     assert d1.confidence == 1.0 and d2.confidence == 0.0
 
 
+@pytest.mark.parametrize("raw", ["NaN", '"nan"', "Infinity", '"-inf"'])
+async def test_llm_non_finite_confidence_is_zero_not_max(raw):
+    d = await llm_analyzer(f'{{"action": "rollout_restart", "confidence": {raw}}}').decide(decision_ctx())
+    assert d.confidence == 0.0
+
+
 async def test_llm_decision_uses_the_decision_model_and_triage_uses_the_cheap_one():
     calls: list = []
     a = llm_analyzer('{"action": "do_nothing"}', calls=calls)
