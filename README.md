@@ -57,7 +57,7 @@ One poll (default every 15 minutes), in code order (`k8s_guardian/engine.py`):
 | **Hard action allowlist** (`models.py`) | Only `rollout_restart` and `do_nothing` exist. `delete_pod`, scaling, exec and anything a model invents are rejected, and a policy file that lists another action fails to load. |
 | **Target comes from the observation** | The workload to restart is the one the detector saw. A decision naming a different target is `blocked_target`, whatever the model says. |
 | **Policy file** | Per `namespace/workload` globs, first match wins, default is observe-only. `writable_namespaces` must be exact names. |
-| **Only Deployments** | StatefulSets, DaemonSets, Jobs, ReplicaSets not owned by a Deployment (no `pod-template-hash`) and ownerless pods are never restartable. `OOMKilled`, image-pull and node problems are never restartable (a restart cannot fix them). |
+| **Only Deployments** | StatefulSets, DaemonSets, Jobs, ReplicaSet pods without a matching `pod-template-hash`, and ownerless pods are never restartable. `OOMKilled`, image-pull and node problems are never restartable (a restart cannot fix them). |
 | **Dry-run by default** | `GUARDIAN_DRY_RUN=true` until you flip it. Dry-run rows never count against cooldown or budget. |
 | **Cooldown, repeat-failure, budget** | After a live restart: wait `cooldown`; if it is still broken inside `repeat_window`, escalate to a human instead of restarting again; at most `max_actions_per_hour` live actions. Read from the audit DB. |
 | **Untrusted model output** | JSON is schema-validated, confidence clamped, unknown actions rejected. Logs reach the model only after secret redaction, and a test feeds it a prompt-injection payload that the gate then refuses. |
@@ -83,11 +83,11 @@ Gate outcomes (stored in the audit log's `result` column):
 Requires Python 3.11+ (tested on 3.11, 3.12, 3.13). No cluster or API key is needed for the first two steps.
 
 ```bash
-git clone https://github.com/Ctwqk/k8s-guardian.git && cd k8s-guardian
-python -m venv .venv && . .venv/bin/activate
+git clone --branch portfolio-upgrade https://github.com/Ctwqk/k8s-guardian.git && cd k8s-guardian
+python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 
-pytest -q                                   # 224 tests, no network, no keys
+pytest -q                                   # 242 tests, no external services or keys
 
 # One poll against the built-in demo cluster (fake backend), dry-run:
 GUARDIAN_BACKEND=fake GUARDIAN_POLICY_FILE=examples/policy.demo.yaml \
@@ -271,7 +271,7 @@ docs/             captured demo transcript, RBAC check
 ```bash
 pip install -e ".[dev]"
 ruff check . && ruff format --check . && mypy      # lint, format, strict types
-pytest --cov                                        # 224 tests, ~98% line coverage
+pytest --cov                                        # 242 tests, ~98% line coverage
 ```
 
 The suite uses a fake cluster, a scripted fake model (including hostile ones), `httpx.MockTransport` for the LLM and
@@ -291,6 +291,7 @@ and smoke-tests the Docker image, renders the manifests, and runs the kind end-t
 ## Known limitations
 
 - The only action is a Deployment rollout restart (scaling and deleting are deliberately absent). StatefulSets, DaemonSets and Jobs are observe-only.
+- Deployment ownership is inferred from the pod's ReplicaSet name and matching `pod-template-hash` label; the ReplicaSet owner chain is not fetched. Custom controllers that reuse that convention may be misidentified, so workload metadata must be trusted.
 - It does not look at rollout history, so a crash loop right after a bad deploy is treated like any other: one restart, then escalation. (The LLM prompt mentions this case; the rule analyzer cannot see it.)
 - Secret redaction is regex-based and best effort. With `GUARDIAN_ANALYZER=llm`, filtered logs of **all watched pods** are sent to your endpoint on every poll that has logs; use a local or trusted endpoint.
 - LLM decision quality is untested against a real model; Discord delivery is untested against real Discord (mocked transports only).
