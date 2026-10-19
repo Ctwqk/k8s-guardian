@@ -1,0 +1,10 @@
+# Audit log and snapshots (SQLite). One replica only: the database has a single writer.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: k8s-guardian-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi

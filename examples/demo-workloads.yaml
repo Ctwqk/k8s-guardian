@@ -1,0 +1,73 @@
+# Throwaway workloads for the kind demo (scripts/kind-demo.sh). Namespace "demo" is the only
+# namespace examples/policy.demo.yaml (and deploy/k8s/overlays/demo) lets the guardian touch.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+---
+# Healthy: must never be touched.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: demo}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+        - name: web
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "http.server", "8080"]
+---
+# Crash-loops. Policy permits a controlled restart (which will NOT fix it: it is a deliberate bug),
+# so the guardian restarts once, then escalates to a human instead of looping.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: crashy-api, namespace: demo}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: crashy-api}}
+  template:
+    metadata: {labels: {app: crashy-api}}
+    spec:
+      containers:
+        - name: api
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c", "import sys; print('starting api'); print('ERROR: cannot connect to redis:6379 (connection refused)'); sys.exit(1)"]
+---
+# Crash-loops too, but the policy marks payments-* as human-review-only: never restarted.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: payments-executor, namespace: demo}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: payments-executor}}
+  template:
+    metadata: {labels: {app: payments-executor}}
+    spec:
+      containers:
+        - name: executor
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c", "import sys; print('FATAL: order signature mismatch, aborting'); sys.exit(2)"]
+---
+# Gets OOMKilled: a restart cannot help, so the guardian escalates.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: batch-worker, namespace: demo}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: batch-worker}}
+  template:
+    metadata: {labels: {app: batch-worker}}
+    spec:
+      containers:
+        - name: worker
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c", "import time; print('loading dataset', flush=True); b = bytearray(300 * 1024 * 1024); time.sleep(60)"]
+          resources:
+            limits: {memory: 64Mi}

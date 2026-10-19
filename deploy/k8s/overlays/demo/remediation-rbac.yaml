@@ -1,0 +1,25 @@
+# The ONLY write permission the guardian ever receives: patch Deployments in the "demo" namespace.
+# Create one Role + RoleBinding per namespace listed in the policy's writable_namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8s-guardian-remediate
+  namespace: demo
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-guardian-remediate
+  namespace: demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: k8s-guardian-remediate
+subjects:
+  - kind: ServiceAccount
+    name: k8s-guardian
+    namespace: k8s-guardian

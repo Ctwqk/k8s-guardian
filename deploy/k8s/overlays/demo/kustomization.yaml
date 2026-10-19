@@ -1,0 +1,20 @@
+# Demo overlay: live remediation, but only inside the "demo" namespace and only for what
+# policy.yaml allows. Short intervals so the behaviour is visible within a minute.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - remediation-rbac.yaml
+configMapGenerator:
+  - name: k8s-guardian-policy
+    behavior: replace
+    files:
+      - policy.yaml
+  - name: k8s-guardian-config
+    behavior: merge
+    literals:
+      - GUARDIAN_DRY_RUN=false
+      - GUARDIAN_POLL_INTERVAL_SECONDS=30
+      - GUARDIAN_COOLDOWN_SECONDS=60
+      - GUARDIAN_REPEAT_WINDOW_SECONDS=3600
+      - GUARDIAN_REPLICA_MISMATCH_GRACE_SECONDS=30

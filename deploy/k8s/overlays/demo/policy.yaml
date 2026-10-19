@@ -1,0 +1,22 @@
+# Policy used by the README demo (fake backend and the kind e2e script).
+# Rules are evaluated top to bottom; the first match wins.
+version: demo-1
+watched_namespaces: ["*"]
+ignored_namespaces: [kube-system, kube-public, kube-node-lease, local-path-storage]
+
+# The only namespaces where the guardian may ever change anything (exact names, no globs).
+writable_namespaces: [demo]
+
+rules:
+  - namespace: demo
+    workload: "payments-*"
+    allowed_actions: [do_nothing]
+    reason: Pretend payment executor. Restarting could replay or drop orders; a human must review.
+  - namespace: demo
+    workload: "*"
+    allowed_actions: [rollout_restart, do_nothing]
+    reason: Stateless demo workloads. A controlled rollout restart is acceptable.
+
+default_rule:
+  allowed_actions: [do_nothing]
+  reason: No rule grants remediation for this workload; human review required.
