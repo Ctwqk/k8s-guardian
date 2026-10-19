@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from k8s_guardian.cluster.parse import parse_deployment, parse_node, parse_pod, resolve_owner
 
 
@@ -144,3 +146,20 @@ def test_parse_node_conditions():
     )
     assert node.ready == "True"
     assert node.memory_pressure and not node.disk_pressure and not node.pid_pressure
+
+
+@pytest.mark.parametrize("field", ["state", "lastState"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_oom_reason_is_not_overwritten_by_another_container(field, reverse):
+    item = pod_json()
+    statuses = [
+        {"name": "app", field: {"terminated": {"reason": "OOMKilled", "finishedAt": "2026-10-19T10:05:00Z"}}},
+        {"name": "sidecar", field: {"terminated": {"reason": "Error", "finishedAt": "2026-10-19T10:06:00Z"}}},
+    ]
+    item["status"]["containerStatuses"] = statuses[::-1] if reverse else statuses
+    pod = parse_pod(item)
+    if field == "state":
+        assert pod.terminated_reason == "OOMKilled"
+    else:
+        assert pod.last_terminated_reason == "OOMKilled"
+        assert pod.last_terminated_at.minute == 5

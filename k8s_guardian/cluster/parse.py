@@ -63,9 +63,10 @@ def parse_pod(item: dict[str, Any]) -> PodInfo:
         last = (cs.get("lastState") or {}).get("terminated") or {}
         if waiting.get("reason") and waiting["reason"] != "PodInitializing":
             waiting_reason = waiting["reason"]
-        if terminated.get("reason") and terminated["reason"] != "Completed":
+        # Do not let another container hide an OOM: it makes the whole workload human-only.
+        if terminated.get("reason") and terminated["reason"] != "Completed" and terminated_reason != "OOMKilled":
             terminated_reason = terminated["reason"]
-        if last.get("reason"):
+        if last.get("reason") and last_terminated_reason != "OOMKilled":
             last_terminated_reason = last["reason"]
             last_terminated_at = _parse_ts(last.get("finishedAt"))
 

@@ -50,6 +50,13 @@ def test_old_oom_on_a_healthy_pod_is_not_an_anomaly():
     assert detect([make_pod(restarts=1, last_terminated_reason="OOMKilled")]) == []
 
 
+def test_flapping_caused_by_oom_kills_is_not_restartable():
+    # Currently Running and ready between kills, so only the flapping rule fires.
+    pod = make_pod("api-1", deploy="api", restarts=8, last_terminated_reason="OOMKilled")
+    [a] = detect([pod], baseline={"demo/api-1": 0})
+    assert a.rule == "oom_killed" and not a.actionable and "OOMKilled" in a.details
+
+
 def test_image_pull_failure_is_medium_and_never_actionable():
     pod = make_pod("api-1", deploy="api", status="ImagePullBackOff", phase="Pending", waiting_reason="ImagePullBackOff")
     [a] = detect([pod])
@@ -131,11 +138,11 @@ def test_merge_by_target_gives_a_workload_one_anomaly_led_by_the_most_specific_r
     det = Detector(replica_mismatch_grace_seconds=0)
     detect(pods, deployments, detector=det, now=NOW)
     found = detect(pods, deployments, detector=det, now=NOW + 1, baseline={"demo/api-1": 0})
-    assert {a.rule for a in found} == {"oom_killed", "replica_mismatch", "restart_flapping"}
+    assert {a.rule for a in found} == {"oom_killed", "replica_mismatch"}
 
     [merged] = merge_by_target(found)
     assert merged.rule == "oom_killed" and merged.severity is Severity.HIGH
-    assert "replica_mismatch" in merged.details and "restart_flapping" in merged.details
+    assert "replica_mismatch" in merged.details and not merged.actionable
 
 
 def test_merge_by_target_keeps_distinct_targets_ordered_by_severity():
@@ -188,3 +195,15 @@ def test_repeated_restarts_that_are_not_a_crash_loop(kwargs):
     base = dict(deploy="api", status="not_ready", phase="Running")
     base.update(kwargs)
     assert [a.rule for a in detect([make_pod("api-1", **base)])] == []
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_oom_flapping_cannot_be_hidden_by_a_crashing_replica(reverse):
+    pods = [
+        make_pod("api-1", deploy="api", status="CrashLoopBackOff", restarts=8),
+        make_pod("api-2", deploy="api", restarts=8, last_terminated_reason="OOMKilled"),
+    ]
+    if reverse:
+        pods.reverse()
+    [a] = merge_by_target(detect(pods, baseline={"demo/api-1": 0, "demo/api-2": 0}))
+    assert a.rule == "oom_killed" and not a.actionable

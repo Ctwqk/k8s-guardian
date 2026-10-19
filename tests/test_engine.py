@@ -404,3 +404,18 @@ async def test_oomkilled_workloads_are_escalated_not_restarted_even_if_the_model
     assert outcomes(report) == {"demo/api": "blocked_not_actionable"}
     assert cluster.restarts == [] and analyzer.decide_calls == []  # not even asked
     assert [n["rule"] for n in notifier.sent] == ["oom_killed"]
+
+
+async def test_oom_flapping_blocks_the_whole_deployment_before_calling_the_model(make_guardian, clock):
+    cluster = FakeCluster(pods=[make_pod("api-1", deploy="api"), make_pod("api-2", deploy="api")])
+    analyzer = ScriptedAnalyzer(restart_decision())
+    g = make_guardian(cluster, analyzer=analyzer, dry_run=False)
+    await g.poll_once()  # persist the restart baseline
+    clock.advance(3700)
+    cluster.pods = [
+        make_pod("api-1", deploy="api", status="CrashLoopBackOff", restarts=8),
+        make_pod("api-2", deploy="api", restarts=8, last_terminated_reason="OOMKilled"),
+    ]
+    report = await g.poll_once()
+    assert outcomes(report) == {"demo/api": "blocked_not_actionable"}
+    assert cluster.restarts == [] and analyzer.decide_calls == []

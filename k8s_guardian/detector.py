@@ -170,13 +170,16 @@ class Detector:
             before = baseline.get(f"{pod.namespace}/{pod.name}", 0)
             delta = pod.restarts - before
             if delta >= self.flap_threshold:
+                # Flapping because of OOM kills is still an OOM problem: human only (see oom_killed).
+                oom_flap = pod.last_terminated_reason == "OOMKilled"
                 out.append(
                     self._pod_anomaly(
                         pod,
-                        "restart_flapping",
-                        Severity.MEDIUM,
-                        f"Pod {pod.name} restarted {delta} times in ~1h (total: {pod.restarts})",
-                        actionable=True,
+                        "oom_killed" if oom_flap else "restart_flapping",
+                        Severity.HIGH if oom_flap else Severity.MEDIUM,
+                        f"Pod {pod.name} restarted {delta} times in ~1h (total: {pod.restarts})"
+                        + (", last exit OOMKilled" if oom_flap else ""),
+                        actionable=not oom_flap,
                     )
                 )
         return out
