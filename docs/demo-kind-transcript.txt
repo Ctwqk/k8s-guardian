@@ -1,0 +1,91 @@
+# Captured by scripts/kind-demo.sh on 2026-10-19: kind v0.29.0, Kubernetes v1.33.1 (kindest/node), single control-plane node.
+# Cluster name was pu-k8sguardian-demo; it is deleted at the end of the script. Kind's own progress output is omitted.
+==> deploying demo workloads (one healthy, three broken)
+namespace/demo created
+deployment.apps/web created
+deployment.apps/crashy-api created
+deployment.apps/payments-executor created
+deployment.apps/batch-worker created
+Waiting for deployment "web" rollout to finish: 0 of 1 updated replicas are available...
+deployment "web" successfully rolled out
+
+==> waiting for the broken workloads to start crash-looping
+NAME                                READY   STATUS      RESTARTS   AGE
+batch-worker-7474b6fdf9-v2jnd       0/1     OOMKilled   0          1s
+crashy-api-fd89b99fd-pggbk          0/1     Error       0          1s
+payments-executor-7d476b758-8vbzs   0/1     Error       0          1s
+web-6d67df84f7-w4tcf                1/1     Running     0          1s
+
+==> deploying k8s-guardian (live mode, restricted to namespace 'demo')
+namespace/k8s-guardian created
+serviceaccount/k8s-guardian created
+role.rbac.authorization.k8s.io/k8s-guardian-remediate created
+clusterrole.rbac.authorization.k8s.io/k8s-guardian-read created
+rolebinding.rbac.authorization.k8s.io/k8s-guardian-remediate created
+clusterrolebinding.rbac.authorization.k8s.io/k8s-guardian-read created
+configmap/k8s-guardian-config created
+configmap/k8s-guardian-policy created
+service/k8s-guardian created
+persistentvolumeclaim/k8s-guardian-data created
+deployment.apps/k8s-guardian created
+Waiting for deployment "k8s-guardian" rollout to finish: 0 of 1 updated replicas are available...
+deployment "k8s-guardian" successfully rolled out
+
+==> port-forwarding to the guardian API
+
+==> waiting (up to 6 min) for the guardian to restart crashy-api once and then escalate
+
+==> guardian logs
+2026-10-19 21:14:55,358 INFO guardian guardian loop started (interval=30s dry_run=False analyzer=rules triage=rules decision=rules)
+2026-10-19 21:14:55,427 INFO guardian decision target=demo/batch-worker rule=oom_killed outcome=blocked_not_actionable needs_human=True reason=oom_killed on demo/batch-worker cannot be fixed by a Deployment restart
+2026-10-19 21:14:55,427 INFO guardian decision target=demo/crashy-api rule=log_issue outcome=blocked_not_actionable needs_human=True reason=log_issue on demo/crashy-api cannot be fixed by a Deployment restart
+2026-10-19 21:14:55,427 INFO guardian decision target=demo/payments-executor rule=log_issue outcome=blocked_policy needs_human=True reason=policy forbids rollout_restart on demo/payments-executor: Pretend payment executor. Restart
+2026-10-19 21:14:55,427 INFO guardian poll complete: pods=5 healthy=1 anomalies=1 error_lines=2 decisions=3 dry_run=False
+2026-10-19 21:15:25,473 INFO guardian decision target=demo/batch-worker rule=oom_killed outcome=blocked_not_actionable needs_human=True reason=oom_killed on demo/batch-worker cannot be fixed by a Deployment restart
+2026-10-19 21:15:25,484 INFO guardian action target=demo/crashy-api rule=crash_loop outcome=executed detail=deployment.apps/crashy-api restarted (restartedAt=2026-10-19T21:15:25+00:00)
+2026-10-19 21:15:25,484 INFO guardian decision target=demo/payments-executor rule=crash_loop outcome=blocked_policy needs_human=True reason=policy forbids rollout_restart on demo/payments-executor: Pretend payment executor. Restar
+2026-10-19 21:15:25,484 INFO guardian poll complete: pods=5 healthy=2 anomalies=6 error_lines=2 decisions=3 dry_run=False
+2026-10-19 21:15:55,521 INFO guardian decision target=demo/batch-worker rule=oom_killed outcome=blocked_not_actionable needs_human=True reason=oom_killed on demo/batch-worker cannot be fixed by a Deployment restart
+2026-10-19 21:15:55,521 INFO guardian decision target=demo/crashy-api rule=crash_loop outcome=cooldown needs_human=False reason=cooldown active for demo/crashy-api (29s remaining)
+2026-10-19 21:15:55,521 INFO guardian decision target=demo/payments-executor rule=crash_loop outcome=blocked_policy needs_human=True reason=policy forbids rollout_restart on demo/payments-executor: Pretend payment executor. Restar
+2026-10-19 21:15:55,521 INFO guardian poll complete: pods=5 healthy=2 anomalies=6 error_lines=2 decisions=3 dry_run=False
+2026-10-19 21:16:25,579 INFO guardian decision target=demo/batch-worker rule=oom_killed outcome=blocked_not_actionable needs_human=True reason=oom_killed on demo/batch-worker cannot be fixed by a Deployment restart
+2026-10-19 21:16:25,579 INFO guardian decision target=demo/crashy-api rule=crash_loop outcome=repeat_failure needs_human=True reason=demo/crashy-api was already restarted 60s ago and is still unhealthy; another restart is unlikely
+2026-10-19 21:16:25,579 INFO guardian decision target=demo/payments-executor rule=crash_loop outcome=blocked_policy needs_human=True reason=policy forbids rollout_restart on demo/payments-executor: Pretend payment executor. Restar
+2026-10-19 21:16:25,579 INFO guardian poll complete: pods=5 healthy=2 anomalies=6 error_lines=2 decisions=3 dry_run=False
+
+==> audit trail (oldest first)
+demo/batch-worker        oom_killed   blocked_not_actionable human=1 oom_killed on demo/batch-worker cannot be fixed by a Deployment restar
+demo/crashy-api          log_issue    blocked_not_actionable human=1 log_issue on demo/crashy-api cannot be fixed by a Deployment restart
+demo/payments-executor   log_issue    blocked_policy  human=1 policy forbids rollout_restart on demo/payments-executor: Pretend paym
+demo/batch-worker        oom_killed   blocked_not_actionable human=1 oom_killed on demo/batch-worker cannot be fixed by a Deployment restar
+demo/crashy-api          crash_loop   executed        human=0 deployment.apps/crashy-api restarted (restartedAt=2026-10-19T21:15:25+
+demo/payments-executor   crash_loop   blocked_policy  human=1 policy forbids rollout_restart on demo/payments-executor: Pretend paym
+demo/batch-worker        oom_killed   blocked_not_actionable human=1 oom_killed on demo/batch-worker cannot be fixed by a Deployment restar
+demo/crashy-api          crash_loop   cooldown        human=0 cooldown active for demo/crashy-api (29s remaining)
+demo/payments-executor   crash_loop   blocked_policy  human=1 policy forbids rollout_restart on demo/payments-executor: Pretend paym
+demo/batch-worker        oom_killed   blocked_not_actionable human=1 oom_killed on demo/batch-worker cannot be fixed by a Deployment restar
+demo/crashy-api          crash_loop   repeat_failure  human=1 demo/crashy-api was already restarted 60s ago and is still unhealthy; 
+demo/payments-executor   crash_loop   blocked_policy  human=1 policy forbids rollout_restart on demo/payments-executor: Pretend paym
+
+==> workloads after the guardian's work
+NAME                                READY   STATUS             RESTARTS      AGE
+batch-worker-7474b6fdf9-v2jnd       0/1     OOMKilled          4 (58s ago)   99s
+crashy-api-d7b8f6f95-zcv8k          0/1     CrashLoopBackOff   3 (20s ago)   61s
+payments-executor-7d476b758-8vbzs   0/1     Error              4 (57s ago)   99s
+web-6d67df84f7-w4tcf                1/1     Running            0             99s
+
+==> what actually happened to the Deployments (restart annotation + rollout generation)
+web                  generation=1 restartedAt=-
+crashy-api           generation=2 restartedAt=2026-10-19T21:15:25+00:00
+payments-executor    generation=1 restartedAt=-
+batch-worker         generation=1 restartedAt=-
+
+==> asserting expected behaviour
+PASS  crashy-api was restarted exactly once
+PASS  crashy-api escalated to a human instead of restart-looping
+PASS  payments-executor was blocked by policy on every poll
+PASS  policy-protected / OOM workloads were never restarted
+PASS  healthy web was never considered
+
+==> demo OK

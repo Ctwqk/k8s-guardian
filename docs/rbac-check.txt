@@ -1,0 +1,11 @@
+# kubectl auth can-i ... --as=system:serviceaccount:k8s-guardian:k8s-guardian  (base manifests, kind v1.33.1)
+list pods -A                                  yes
+get pods/log -n kube-system                   yes
+list nodes                                    yes
+list deployments.apps -A                      yes
+patch deployments.apps -n kube-system         no
+patch deployments.apps -n default             no
+delete pods -n default                        no
+get secrets -n kube-system                    no
+list configmaps -n kube-system                no
+create pods/exec -n default                   no
