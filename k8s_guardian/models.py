@@ -122,7 +122,7 @@ class Decision(BaseModel):
     def _clamp_confidence(cls, v: object) -> float:
         try:
             f = float(v)  # type: ignore[arg-type]
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return 0.0
         if not math.isfinite(f):  # NaN would slip through min/max as 1.0
             return 0.0
