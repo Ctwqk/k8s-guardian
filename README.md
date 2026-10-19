@@ -1,6 +1,6 @@
 # k8s-guardian
 
-[![CI](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml)
+[![CI](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml/badge.svg?branch=portfolio-upgrade)](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml?query=branch%3Aportfolio-upgrade)
 
 **A Kubernetes guardian that notices unhealthy workloads, triages their logs (rules or a two-tier LLM), and fixes only what an explicit policy allows. It is dry-run by default, rate-limited, and audits every decision.**
 
