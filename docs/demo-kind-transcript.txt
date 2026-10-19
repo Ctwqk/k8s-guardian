@@ -1,5 +1,6 @@
 # Captured by scripts/kind-demo.sh on 2026-10-19: kind v0.29.0, Kubernetes v1.33.1 (kindest/node), single control-plane node.
-# Cluster name was pu-k8sguardian-demo; it is deleted at the end of the script. Kind's own progress output is omitted.
+# Cluster name was pu-k8sguardian-demo; it is deleted at the end of the script. Kind's own progress output is omitted,
+# and the long guardian log lines below were cut to fit; the untruncated reasons are in docs/demo-kind-actions.json.
 ==> deploying demo workloads (one healthy, three broken)
 namespace/demo created
 deployment.apps/web created

@@ -57,7 +57,7 @@ One poll (default every 15 minutes), in code order (`k8s_guardian/engine.py`):
 | **Hard action allowlist** (`models.py`) | Only `rollout_restart` and `do_nothing` exist. `delete_pod`, scaling, exec and anything a model invents are rejected, and a policy file that lists another action fails to load. |
 | **Target comes from the observation** | The workload to restart is the one the detector saw. A decision naming a different target is `blocked_target`, whatever the model says. |
 | **Policy file** | Per `namespace/workload` globs, first match wins, default is observe-only. `writable_namespaces` must be exact names. |
-| **Only Deployments** | StatefulSets, DaemonSets, Jobs and ownerless pods are never restartable. `OOMKilled`, image-pull and node problems are never restartable (a restart cannot fix them). |
+| **Only Deployments** | StatefulSets, DaemonSets, Jobs, ReplicaSets not owned by a Deployment (no `pod-template-hash`) and ownerless pods are never restartable. `OOMKilled`, image-pull and node problems are never restartable (a restart cannot fix them). |
 | **Dry-run by default** | `GUARDIAN_DRY_RUN=true` until you flip it. Dry-run rows never count against cooldown or budget. |
 | **Cooldown, repeat-failure, budget** | After a live restart: wait `cooldown`; if it is still broken inside `repeat_window`, escalate to a human instead of restarting again; at most `max_actions_per_hour` live actions. Read from the audit DB. |
 | **Untrusted model output** | JSON is schema-validated, confidence clamped, unknown actions rejected. Logs reach the model only after secret redaction, and a test feeds it a prompt-injection payload that the gate then refuses. |
@@ -87,7 +87,7 @@ git clone https://github.com/Ctwqk/k8s-guardian.git && cd k8s-guardian
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 
-pytest -q                                   # 216 tests, no network, no keys
+pytest -q                                   # 224 tests, no network, no keys
 
 # One poll against the built-in demo cluster (fake backend), dry-run:
 GUARDIAN_BACKEND=fake GUARDIAN_POLICY_FILE=examples/policy.demo.yaml \
@@ -271,7 +271,7 @@ docs/             captured demo transcript, RBAC check
 ```bash
 pip install -e ".[dev]"
 ruff check . && ruff format --check . && mypy      # lint, format, strict types
-pytest --cov                                        # 216 tests, ~98% line coverage
+pytest --cov                                        # 224 tests, ~98% line coverage
 ```
 
 The suite uses a fake cluster, a scripted fake model (including hostile ones), `httpx.MockTransport` for the LLM and
