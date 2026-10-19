@@ -55,6 +55,7 @@ def parse_pod(item: dict[str, Any]) -> PodInfo:
     total_count = len(cstatuses) or len(spec.get("containers", []))
 
     waiting_reason = terminated_reason = last_terminated_reason = ""
+    last_terminated_at: datetime | None = None
     for cs in [*(status.get("initContainerStatuses") or []), *cstatuses]:
         state = cs.get("state") or {}
         waiting = state.get("waiting") or {}
@@ -66,6 +67,7 @@ def parse_pod(item: dict[str, Any]) -> PodInfo:
             terminated_reason = terminated["reason"]
         if last.get("reason"):
             last_terminated_reason = last["reason"]
+            last_terminated_at = _parse_ts(last.get("finishedAt"))
 
     if meta.get("deletionTimestamp"):
         display = "terminating"
@@ -91,6 +93,7 @@ def parse_pod(item: dict[str, Any]) -> PodInfo:
         waiting_reason=waiting_reason,
         terminated_reason=terminated_reason,
         last_terminated_reason=last_terminated_reason,
+        last_terminated_at=last_terminated_at,
         deploy=workload,
         owner_kind=owner_kind,
         created=_parse_ts(meta.get("creationTimestamp")),

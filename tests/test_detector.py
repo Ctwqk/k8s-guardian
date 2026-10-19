@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
 from k8s_guardian.detector import Detector, merge_by_target
@@ -151,6 +153,21 @@ def test_crash_loop_is_still_detected_between_backoff_waits():
     assert a.rule == "crash_loop" and "keeps crashing (Error)" in a.details
 
 
+def test_crash_loop_is_detected_while_the_container_is_running_again_after_a_recent_crash():
+    just_now = datetime.fromtimestamp(NOW - 30, UTC)
+    pod = make_pod(
+        "api-1",
+        deploy="api",
+        status="not_ready",
+        phase="Running",
+        restarts=4,
+        last_terminated_reason="Error",
+        last_terminated_at=just_now,
+    )
+    [a] = detect([pod])
+    assert a.rule == "crash_loop" and a.actionable
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [
@@ -158,6 +175,13 @@ def test_crash_loop_is_still_detected_between_backoff_waits():
         dict(restarts=9, terminated_reason="Completed"),  # clean exits are not crashes
         dict(restarts=9, status="running"),  # currently healthy: flapping covers this, not crash_loop
         dict(restarts=9, terminated_reason="Error", phase="Succeeded"),  # finished Job pod
+        # old pod being deleted during a rolling update; its containers exit as it shuts down
+        dict(restarts=9, status="terminating", terminated_reason="Error"),
+        # not ready right now, but the last crash was a week ago: not a loop (replica_mismatch covers it)
+        dict(
+            restarts=9, last_terminated_reason="Error", last_terminated_at=datetime.fromtimestamp(NOW - 7 * 86400, UTC)
+        ),
+        dict(restarts=9, last_terminated_reason="Error"),  # exit time unknown: do not assume it was recent
     ],
 )
 def test_repeated_restarts_that_are_not_a_crash_loop(kwargs):

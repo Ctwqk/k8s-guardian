@@ -35,6 +35,7 @@ class PodInfo(BaseModel):
     waiting_reason: str = ""
     terminated_reason: str = ""
     last_terminated_reason: str = ""
+    last_terminated_at: datetime | None = None  # when that previous instance exited
     deploy: str = ""  # owning workload name ("" when the pod has no controller)
     owner_kind: str = ""  # Deployment / StatefulSet / DaemonSet / Job / ...
     created: datetime | None = None

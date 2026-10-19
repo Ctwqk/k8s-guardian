@@ -8,6 +8,10 @@ from .models import Anomaly, ClusterSnapshot, DeploymentInfo, NodeInfo, PodInfo,
 
 IMAGE_PULL_REASONS = frozenset({"ImagePullBackOff", "ErrImagePull", "InvalidImageName"})
 
+# CrashLoopBackOff waits at most 5 minutes between attempts, so a container that is crash-looping
+# has always exited within the last few minutes. An older exit is history, not a loop.
+CRASH_RECENT_SECONDS = 600
+
 # When several rules fire for one workload, the most specific diagnosis leads: "OOMKilled" explains
 # more than "CrashLoopBackOff", which in turn explains more than "replicas unavailable".
 RULE_SPECIFICITY = (
@@ -98,15 +102,19 @@ class Detector:
             actionable=actionable and pod.owner_kind == "Deployment" and bool(pod.deploy),
         )
 
-    def _crashed_repeatedly(self, pod: PodInfo) -> bool:
+    def _crashed_repeatedly(self, pod: PodInfo, now: float) -> bool:
         """Between back-off waits a crash-looping container is briefly *Terminated* (or Running again),
-        not *Waiting/CrashLoopBackOff*. Catch that window so detection does not flicker."""
-        reason = pod.terminated_reason or pod.last_terminated_reason
+        not *Waiting/CrashLoopBackOff*. Catch that window so detection does not flicker, without
+        mistaking a pod being deleted, or one whose last crash was long ago, for a crash loop."""
+        if pod.phase != "Running" or pod.status in ("running", "terminating") or pod.restarts < self.crash_min_restarts:
+            return False
+        if pod.terminated_reason not in ("", "Completed"):  # exited just now
+            return True
+        last = pod.last_terminated_at
         return (
-            pod.phase == "Running"
-            and pod.status != "running"
-            and pod.restarts >= self.crash_min_restarts
-            and reason not in ("", "Completed")
+            pod.last_terminated_reason not in ("", "Completed")
+            and last is not None
+            and now - last.astimezone(UTC).timestamp() <= CRASH_RECENT_SECONDS
         )
 
     def _pod_anomalies(self, pod: PodInfo, now: float, baseline: dict[str, int] | None) -> list[Anomaly]:
@@ -126,7 +134,7 @@ class Detector:
                     actionable=False,
                 )
             )
-        elif pod.waiting_reason == "CrashLoopBackOff" or self._crashed_repeatedly(pod):
+        elif pod.waiting_reason == "CrashLoopBackOff" or self._crashed_repeatedly(pod, now):
             out.append(
                 self._pod_anomaly(
                     pod,

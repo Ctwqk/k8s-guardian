@@ -56,9 +56,12 @@ def test_healthy_pod_is_running():
 
 def test_oom_killed_is_reported_from_last_state():
     item = pod_json()
-    item["status"]["containerStatuses"][0]["lastState"] = {"terminated": {"reason": "OOMKilled"}}
+    item["status"]["containerStatuses"][0]["lastState"] = {
+        "terminated": {"reason": "OOMKilled", "finishedAt": "2026-10-19T10:05:00Z"}
+    }
     pod = parse_pod(item)
     assert pod.last_terminated_reason == "OOMKilled"
+    assert pod.last_terminated_at is not None and pod.last_terminated_at.minute == 5
 
 
 def test_completed_init_container_is_not_a_failure():
