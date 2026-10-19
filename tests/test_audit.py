@@ -16,6 +16,7 @@ def rec(audit: AuditLog, ts: float, target: str = "demo/api", result: Outcome = 
         details="d",
         action="rollout_restart",
         result=result,
+        dry_run=kw.pop("dry_run", False),
         **kw,
     )
 
@@ -96,3 +97,21 @@ def test_database_persists_across_reopen(tmp_path):
     second = AuditLog(path)
     assert second.last_attempt_ts("demo/api") == NOW  # cooldowns survive a restart
     second.close()
+
+
+def test_interrupted_dry_run_never_consumes_live_limits_after_reopen(tmp_path):
+    path = tmp_path / "interrupted.db"
+    with_dry_run = AuditLog(path)
+    rec(with_dry_run, NOW, result=Outcome.ALLOWED, dry_run=True)
+    with_dry_run.close()  # interrupted before finish(), like a process exit
+    reopened = AuditLog(path)
+    try:
+        assert reopened.attempts_since(NOW - 3600) == 0
+        assert reopened.last_attempt_ts("demo/api") is None
+        assert reopened.cooldown_targets(NOW, 600) == {}
+        rec(reopened, NOW + 1, result=Outcome.ALLOWED, dry_run=False)
+        assert reopened.attempts_since(NOW - 3600) == 1
+        assert reopened.last_attempt_ts("demo/api") == NOW + 1
+        assert reopened.cooldown_targets(NOW + 1, 600) == {"demo/api": NOW + 1}
+    finally:
+        reopened.close()

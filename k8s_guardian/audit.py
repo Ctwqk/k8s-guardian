@@ -144,7 +144,8 @@ class AuditLog:
     def last_attempt_ts(self, target: str) -> float | None:
         with self._lock:
             row = self._db.execute(
-                f"SELECT MAX(ts) AS ts FROM audit_log WHERE target=? AND result IN ({_LIVE_MARKS})",  # noqa: S608
+                "SELECT MAX(ts) AS ts FROM audit_log WHERE target=? AND dry_run=0"  # noqa: S608
+                f" AND result IN ({_LIVE_MARKS})",
                 (target, *LIVE_OUTCOMES),
             ).fetchone()
         return None if row is None or row["ts"] is None else float(row["ts"])
@@ -152,7 +153,8 @@ class AuditLog:
     def attempts_since(self, ts: float) -> int:
         with self._lock:
             row = self._db.execute(
-                f"SELECT COUNT(*) AS c FROM audit_log WHERE ts >= ? AND result IN ({_LIVE_MARKS})",  # noqa: S608
+                "SELECT COUNT(*) AS c FROM audit_log WHERE ts >= ? AND dry_run=0"  # noqa: S608
+                f" AND result IN ({_LIVE_MARKS})",
                 (ts, *LIVE_OUTCOMES),
             ).fetchone()
         return int(row["c"])
@@ -177,7 +179,8 @@ class AuditLog:
         """Targets with a live attempt inside ``window_seconds``, mapped to the attempt time."""
         with self._lock:
             rows = self._db.execute(
-                f"SELECT target, MAX(ts) AS ts FROM audit_log WHERE ts >= ? AND result IN ({_LIVE_MARKS})"  # noqa: S608
+                "SELECT target, MAX(ts) AS ts FROM audit_log WHERE ts >= ? AND dry_run=0"  # noqa: S608
+                f" AND result IN ({_LIVE_MARKS})"
                 " GROUP BY target",
                 (now - window_seconds, *LIVE_OUTCOMES),
             ).fetchall()
