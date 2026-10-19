@@ -22,19 +22,22 @@ def _parse_ts(value: str | None) -> datetime | None:
 
 
 def resolve_owner(meta: dict[str, Any]) -> tuple[str, str]:
-    """Return ``(owner_kind, workload_name)`` for a pod. ReplicaSets are mapped to their Deployment."""
+    """Return ``(owner_kind, workload_name)`` for a pod.
+
+    A ReplicaSet is mapped to its Deployment only when the pod carries the ``pod-template-hash``
+    label the Deployment controller always sets and the ReplicaSet is named ``<deployment>-<hash>``.
+    Anything else (a bare ReplicaSet, an Argo Rollout, ...) stays a ``ReplicaSet``: guessing a
+    Deployment name by stripping a suffix could point a restart at an unrelated Deployment.
+    """
     kind, name = "", ""
     labels = meta.get("labels") or {}
     for ref in meta.get("ownerReferences") or []:
         kind = ref.get("kind", "")
         name = ref.get("name", "")
         if kind == "ReplicaSet":
-            kind = "Deployment"
             template_hash = labels.get("pod-template-hash", "")
             if template_hash and name.endswith(f"-{template_hash}"):
-                name = name[: -len(template_hash) - 1]
-            elif "-" in name:
-                name = name.rsplit("-", 1)[0]
+                kind, name = "Deployment", name[: -len(template_hash) - 1]
         if ref.get("controller"):
             break
     return kind, name

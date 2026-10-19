@@ -93,11 +93,18 @@ def test_statefulset_owner_keeps_its_kind():
     assert (pod.owner_kind, pod.deploy) == ("StatefulSet", "redis")
 
 
-def test_replicaset_name_without_hash_label_falls_back_to_suffix_strip():
+def test_replicaset_without_the_deployment_hash_label_is_not_guessed_to_be_a_deployment():
+    # e.g. a bare ReplicaSet "api-v2": stripping the suffix would name an unrelated Deployment "api"
+    kind, name = resolve_owner({"ownerReferences": [{"kind": "ReplicaSet", "name": "api-v2", "controller": True}]})
+    assert (kind, name) == ("ReplicaSet", "api-v2")
+    # Argo Rollouts label their pods with rollouts-pod-template-hash, not pod-template-hash
     kind, name = resolve_owner(
-        {"ownerReferences": [{"kind": "ReplicaSet", "name": "my-app-5d8f9c7b6", "controller": True}]}
+        {
+            "labels": {"rollouts-pod-template-hash": "5d8f9c7b6"},
+            "ownerReferences": [{"kind": "ReplicaSet", "name": "my-app-5d8f9c7b6", "controller": True}],
+        }
     )
-    assert (kind, name) == ("Deployment", "my-app")
+    assert (kind, name) == ("ReplicaSet", "my-app-5d8f9c7b6")
 
 
 def test_deployment_name_containing_the_hash_text_is_stripped_only_once():
