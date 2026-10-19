@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 ACTION_ROLLOUT_RESTART = "rollout_restart"
 ACTION_DO_NOTHING = "do_nothing"
 ALLOWED_ACTIONS = frozenset({ACTION_ROLLOUT_RESTART, ACTION_DO_NOTHING})
+IMAGE_PULL_REASONS = frozenset({"ImagePullBackOff", "ErrImagePull", "InvalidImageName"})
 
 
 class Severity(StrEnum):

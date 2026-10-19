@@ -211,7 +211,20 @@ def test_oom_flapping_cannot_be_hidden_by_a_crashing_replica(reverse):
 
 @pytest.mark.parametrize("waiting", ["", "CrashLoopBackOff", "ImagePullBackOff"])
 def test_terminating_pods_are_not_remediation_candidates(waiting):
-    pod = make_pod(
-        "api-old", deploy="api", status="terminating", phase="Running", restarts=9, waiting_reason=waiting
-    )
+    pod = make_pod("api-old", deploy="api", status="terminating", phase="Running", restarts=9, waiting_reason=waiting)
     assert detect([pod], baseline={"demo/api-old": 0}) == []
+
+
+def test_image_pull_failure_is_not_mistaken_for_a_recent_crash():
+    pod = make_pod(
+        "api-1",
+        deploy="api",
+        status="ImagePullBackOff",
+        phase="Running",
+        restarts=5,
+        waiting_reason="ImagePullBackOff",
+        last_terminated_reason="Error",
+        last_terminated_at=datetime.fromtimestamp(NOW - 30, UTC),
+    )
+    [a] = detect([pod])
+    assert a.rule == "image_pull_fail" and not a.actionable

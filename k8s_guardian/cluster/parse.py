@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from ..models import DeploymentInfo, NodeInfo, PodInfo
+from ..models import IMAGE_PULL_REASONS, DeploymentInfo, NodeInfo, PodInfo
 
 
 def _parse_ts(value: str | None) -> datetime | None:
@@ -61,7 +61,11 @@ def parse_pod(item: dict[str, Any]) -> PodInfo:
         waiting = state.get("waiting") or {}
         terminated = state.get("terminated") or {}
         last = (cs.get("lastState") or {}).get("terminated") or {}
-        if waiting.get("reason") and waiting["reason"] != "PodInitializing":
+        if (
+            waiting.get("reason")
+            and waiting["reason"] != "PodInitializing"
+            and waiting_reason not in IMAGE_PULL_REASONS
+        ):
             waiting_reason = waiting["reason"]
         # Do not let another container hide an OOM: it makes the whole workload human-only.
         if terminated.get("reason") and terminated["reason"] != "Completed" and terminated_reason != "OOMKilled":

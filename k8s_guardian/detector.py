@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC
 
-from .models import Anomaly, ClusterSnapshot, DeploymentInfo, NodeInfo, PodInfo, Severity
-
-IMAGE_PULL_REASONS = frozenset({"ImagePullBackOff", "ErrImagePull", "InvalidImageName"})
+from .models import IMAGE_PULL_REASONS, Anomaly, ClusterSnapshot, DeploymentInfo, NodeInfo, PodInfo, Severity
 
 # CrashLoopBackOff waits at most 5 minutes between attempts, so a container that is crash-looping
 # has always exited within the last few minutes. An older exit is history, not a loop.
@@ -137,6 +135,12 @@ class Detector:
                     actionable=False,
                 )
             )
+        elif pod.waiting_reason in IMAGE_PULL_REASONS:
+            out.append(
+                self._pod_anomaly(
+                    pod, "image_pull_fail", Severity.MEDIUM, f"Pod {pod.name} {pod.waiting_reason}", actionable=False
+                )
+            )
         elif pod.waiting_reason == "CrashLoopBackOff" or self._crashed_repeatedly(pod, now):
             out.append(
                 self._pod_anomaly(
@@ -148,12 +152,6 @@ class Detector:
                     else f"Pod {pod.name} keeps crashing ({pod.terminated_reason or pod.last_terminated_reason}), "
                     f"{pod.restarts} restarts",
                     actionable=True,
-                )
-            )
-        elif pod.waiting_reason in IMAGE_PULL_REASONS:
-            out.append(
-                self._pod_anomaly(
-                    pod, "image_pull_fail", Severity.MEDIUM, f"Pod {pod.name} {pod.waiting_reason}", actionable=False
                 )
             )
         elif pod.phase == "Pending" and pod.created is not None:

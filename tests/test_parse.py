@@ -163,3 +163,14 @@ def test_oom_reason_is_not_overwritten_by_another_container(field, reverse):
     else:
         assert pod.last_terminated_reason == "OOMKilled"
         assert pod.last_terminated_at.minute == 5
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_image_pull_failure_is_not_overwritten_by_another_containers_crash(reverse):
+    item = pod_json()
+    statuses = [
+        {"name": "app", "state": {"waiting": {"reason": "ImagePullBackOff"}}},
+        {"name": "sidecar", "state": {"waiting": {"reason": "CrashLoopBackOff"}}},
+    ]
+    item["status"]["containerStatuses"] = statuses[::-1] if reverse else statuses
+    assert parse_pod(item).waiting_reason == "ImagePullBackOff"
