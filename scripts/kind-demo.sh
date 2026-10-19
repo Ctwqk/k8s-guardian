@@ -18,17 +18,20 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK="$(mktemp -d)"
 export KUBECONFIG="$WORK/kubeconfig"   # overrides any ambient KUBECONFIG on purpose
 PF_PID=""
+CLUSTER_CREATED=0
 
 log() { printf '\n==> %s\n' "$*"; }
 
 cleanup() {
   [ -n "$PF_PID" ] && kill "$PF_PID" 2>/dev/null || true
-  if [ "${KEEP:-0}" != "1" ]; then
-    log "deleting kind cluster $CLUSTER"
-    kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true
-  else
-    log "cluster kept. kubeconfig: $KUBECONFIG   delete with: kind delete cluster --name $CLUSTER"
-    return
+  if [ "$CLUSTER_CREATED" = "1" ]; then
+    if [ "${KEEP:-0}" != "1" ]; then
+      log "deleting kind cluster $CLUSTER"
+      kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true
+    else
+      log "cluster kept. kubeconfig: $KUBECONFIG   delete with: kind delete cluster --name $CLUSTER"
+      return
+    fi
   fi
   rm -rf "$WORK"
 }
@@ -36,6 +39,7 @@ trap cleanup EXIT
 
 log "creating kind cluster $CLUSTER"
 kind create cluster --name "$CLUSTER" --kubeconfig "$KUBECONFIG" --wait 180s
+CLUSTER_CREATED=1
 
 log "building guardian image and loading images into the cluster"
 docker build -q -t "$IMAGE" "$ROOT" >/dev/null
