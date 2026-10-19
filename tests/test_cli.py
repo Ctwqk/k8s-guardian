@@ -32,8 +32,8 @@ def test_once_against_the_fake_backend(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("GUARDIAN_DB_PATH", str(tmp_path / "g.db"))
     monkeypatch.setenv("GUARDIAN_POLICY_FILE", str(EXAMPLES / "policy.demo.yaml"))
     assert main(["once"]) == 0
-    out = capsys.readouterr().out
-    report = json.loads(out[out.index("{") :])
+    captured = capsys.readouterr()
+    report = json.loads(captured.out)  # stdout is the JSON report and nothing else
     outcomes = {d["target"]: d["outcome"] for d in report["decisions"]}
     assert outcomes == {
         "demo/batch-worker": "blocked_not_actionable",

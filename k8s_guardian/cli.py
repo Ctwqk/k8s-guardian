@@ -8,6 +8,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import TextIO
 
 from pydantic import ValidationError
 
@@ -15,8 +16,8 @@ from .config import Settings
 from .policy import load_policy
 
 
-def _setup_logging(level: str) -> None:
-    logging.basicConfig(level=level.upper(), format="%(asctime)s %(levelname)s %(name)s %(message)s", stream=sys.stdout)
+def _setup_logging(level: str, stream: TextIO) -> None:
+    logging.basicConfig(level=level.upper(), format="%(asctime)s %(levelname)s %(name)s %(message)s", stream=stream)
 
 
 def _serve(settings: Settings) -> int:
@@ -66,5 +67,6 @@ def main(argv: list[str] | None = None) -> int:
     except (ValidationError, ValueError, OSError) as exc:
         print(f"configuration error: {exc}", file=sys.stderr)
         return 2
-    _setup_logging(settings.log_level)
+    # `serve` logs to stdout (container convention); `once` keeps stdout clean for the JSON report.
+    _setup_logging(settings.log_level, sys.stdout if args.command == "serve" else sys.stderr)
     return _serve(settings) if args.command == "serve" else _once(settings)

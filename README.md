@@ -94,7 +94,7 @@ GUARDIAN_BACKEND=fake GUARDIAN_POLICY_FILE=examples/policy.demo.yaml \
   GUARDIAN_DB_PATH=/tmp/guardian-demo.db k8s-guardian once
 ```
 
-Output (log lines; the full JSON report follows on stdout):
+Output (log lines go to stderr; the full JSON report is printed on stdout):
 
 ```
 INFO guardian decision target=demo/batch-worker rule=oom_killed outcome=blocked_not_actionable needs_human=True reason=oom_killed on demo/batch-worker cannot be fixed by a Deployment restart
@@ -271,7 +271,7 @@ docs/             captured demo transcript, RBAC check
 ```bash
 pip install -e ".[dev]"
 ruff check . && ruff format --check . && mypy      # lint, format, strict types
-pytest --cov                                        # 216 tests, ~97% line coverage
+pytest --cov                                        # 216 tests, ~98% line coverage
 ```
 
 The suite uses a fake cluster, a scripted fake model (including hostile ones), `httpx.MockTransport` for the LLM and
