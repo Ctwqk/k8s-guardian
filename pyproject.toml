@@ -1,0 +1,80 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "k8s-guardian"
+dynamic = ["version"]
+description = "Policy-gated, LLM-assisted Kubernetes guardian: detects unhealthy workloads, triages logs, and remediates only what a policy explicitly allows."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "PyYAML>=6.0",
+    "kubernetes>=30.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML",
+]
+
+[project.scripts]
+k8s-guardian = "k8s_guardian.cli:main"
+
+[tool.hatch.version]
+path = "k8s_guardian/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["k8s_guardian"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
+filterwarnings = [
+    # Starlette's TestClient nags about httpx on newer releases; unrelated to this project's own httpx use.
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
+]
+markers = ["e2e: needs a real cluster (kind) and GUARDIAN_E2E=1"]
+
+[tool.coverage.run]
+source = ["k8s_guardian"]
+omit = ["k8s_guardian/__main__.py"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "\\.\\.\\."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC", "S", "RUF"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "RUF012"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["k8s_guardian"]
+
+[[tool.mypy.overrides]]
+module = ["kubernetes", "kubernetes.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["k8s_guardian.cluster.kube"]
+disallow_untyped_calls = false  # the generated client is largely untyped

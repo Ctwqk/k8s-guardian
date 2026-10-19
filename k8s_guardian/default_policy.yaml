@@ -1,0 +1,13 @@
+# Built-in default policy: observe everything, change nothing.
+#
+# Remediation is opt-in. To let the guardian restart a workload you must supply your own
+# policy file (GUARDIAN_POLICY_FILE) that lists the writable namespace and an explicit rule.
+# See examples/policy.demo.yaml and examples/policy.constructure.yaml.
+version: default-observe-only
+watched_namespaces: ["*"]
+ignored_namespaces: [kube-system, kube-public, kube-node-lease]
+writable_namespaces: []
+rules: []
+default_rule:
+  allowed_actions: [do_nothing]
+  reason: No rule grants remediation for this workload; human review required.

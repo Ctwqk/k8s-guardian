@@ -1,0 +1,38 @@
+# The remediation policy that was hard-coded in the original single-file version of k8s-guardian
+# (the author's own k3s cluster), expressed in the policy-file format.
+version: constructure-guardian-2026-03-18
+watched_namespaces: ["constructure-*"]
+ignored_namespaces: [kube-system, kube-public, kube-node-lease]
+
+# constructure-monitor (this guardian) and constructure-infra (redis, postgres, qdrant) are
+# deliberately NOT listed: they are observe-only.
+writable_namespaces:
+  - constructure-arb
+  - constructure-news
+  - constructure-bots
+  - constructure-dashboard
+  - constructure-tools
+
+rules:
+  # constructure-arb
+  - {namespace: constructure-arb, workload: collector, allowed_actions: [rollout_restart], reason: Market data collector with no direct order placement. Controlled restart is acceptable.}
+  - {namespace: constructure-arb, workload: resolver, allowed_actions: [rollout_restart], reason: Matching/indexing worker. Controlled restart is acceptable, but persistent failures need human review.}
+  - {namespace: constructure-arb, workload: validator, allowed_actions: [rollout_restart], reason: Read-only validation worker. Controlled restart is acceptable.}
+  - {namespace: constructure-arb, workload: strategy, allowed_actions: [do_nothing], reason: Emits live trade signals. Autonomous remediation is disabled.}
+  - {namespace: constructure-arb, workload: executor-kalshi, allowed_actions: [do_nothing], reason: Places live Kalshi orders. Human review is required.}
+  - {namespace: constructure-arb, workload: executor-polymarket, allowed_actions: [do_nothing], reason: Places live Polymarket orders through the VPN path. Human review is required.}
+  # constructure-news
+  - {namespace: constructure-news, workload: news-server, allowed_actions: [rollout_restart], reason: Stateless API backed by Postgres. Controlled restart is acceptable.}
+  - {namespace: constructure-news, workload: news-collector, allowed_actions: [rollout_restart], reason: Idempotent ingestion worker. Controlled restart is acceptable.}
+  - {namespace: constructure-news, workload: news-publisher-x, allowed_actions: [do_nothing], reason: External posting workflow with persistent state and CDP/browser dependencies. Human review is required.}
+  # constructure-bots
+  - {namespace: constructure-bots, workload: x-bot, allowed_actions: [rollout_restart], reason: Single-instance posting API attached to host Chrome CDP. Restart only; no scaling or pod deletion.}
+  # constructure-dashboard
+  - {namespace: constructure-dashboard, workload: dashboard, allowed_actions: [rollout_restart], reason: Stateless dashboard with hostPort exposure. Controlled restart is acceptable.}
+  # constructure-tools
+  - {namespace: constructure-tools, workload: gmail-bridge, allowed_actions: [rollout_restart], reason: Single-instance OAuth bridge with persistent token storage. Controlled restart is acceptable.}
+  - {namespace: constructure-tools, workload: job-autoflow, allowed_actions: [do_nothing], reason: Interactive browser automation with local runtime state. Autonomous restart can disrupt active sessions.}
+
+default_rule:
+  allowed_actions: [do_nothing]
+  reason: Unknown or side-effecting workload. Require human review.
