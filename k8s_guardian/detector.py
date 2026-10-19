@@ -118,6 +118,9 @@ class Detector:
         )
 
     def _pod_anomalies(self, pod: PodInfo, now: float, baseline: dict[str, int] | None) -> list[Anomaly]:
+        # A rollout is already replacing this pod. Its stale status must not restart the replacement.
+        if pod.status == "terminating":
+            return []
         out: list[Anomaly] = []
         unhealthy = pod.status != "running"
         oom = pod.terminated_reason == "OOMKilled" or (unhealthy and pod.last_terminated_reason == "OOMKilled")

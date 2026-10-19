@@ -207,3 +207,11 @@ def test_oom_flapping_cannot_be_hidden_by_a_crashing_replica(reverse):
         pods.reverse()
     [a] = merge_by_target(detect(pods, baseline={"demo/api-1": 0, "demo/api-2": 0}))
     assert a.rule == "oom_killed" and not a.actionable
+
+
+@pytest.mark.parametrize("waiting", ["", "CrashLoopBackOff", "ImagePullBackOff"])
+def test_terminating_pods_are_not_remediation_candidates(waiting):
+    pod = make_pod(
+        "api-old", deploy="api", status="terminating", phase="Running", restarts=9, waiting_reason=waiting
+    )
+    assert detect([pod], baseline={"demo/api-old": 0}) == []

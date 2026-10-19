@@ -419,3 +419,16 @@ async def test_oom_flapping_blocks_the_whole_deployment_before_calling_the_model
     report = await g.poll_once()
     assert outcomes(report) == {"demo/api": "blocked_not_actionable"}
     assert cluster.restarts == [] and analyzer.decide_calls == []
+
+
+async def test_deleting_crash_loop_does_not_restart_its_healthy_replacement(make_guardian):
+    cluster = FakeCluster(
+        pods=[
+            make_pod("api-old", deploy="api", status="terminating", phase="Running", waiting_reason="CrashLoopBackOff"),
+            make_pod("api-new", deploy="api"),
+        ],
+        deployments=[DeploymentInfo(name="api", namespace="demo", desired=1, available=1)],
+    )
+    report = await make_guardian(cluster, dry_run=False).poll_once()
+    assert report.anomalies == [] and report.decisions == []
+    assert cluster.restarts == []
