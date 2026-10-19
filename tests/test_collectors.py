@@ -135,3 +135,14 @@ def test_bundle_matches_evidence_to_anomalies():
 def test_bundle_render_truncates():
     bundle = LogBundle(pods=[PodLog("demo", "p", "w", "x" * 100)])
     assert bundle.render(max_chars=50).endswith("[... truncated]")
+
+
+def test_the_guardians_own_info_lines_are_not_treated_as_evidence():
+    own = (
+        "2026-10-19 21:09:49,894 INFO guardian decision target=demo/x outcome=skipped reason=OOMKilled needs a change\n"
+        "2026-10-19 21:09:49,895 INFO guardian.api started\n"
+        "2026-10-19 21:09:50,000 ERROR guardian poll cycle crashed"
+    )
+    kept = filter_log_text(own)
+    assert "outcome=skipped" not in kept and "started" not in kept
+    assert "poll cycle crashed" in kept  # its own errors remain visible

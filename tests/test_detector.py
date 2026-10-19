@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from k8s_guardian.detector import Detector, merge_by_target
 from k8s_guardian.models import ClusterSnapshot, DeploymentInfo, NodeInfo, Severity
 
@@ -139,3 +141,25 @@ def test_merge_by_target_keeps_distinct_targets_ordered_by_severity():
         make_pod("api-1", deploy="api", status="CrashLoopBackOff", restarts=2),
     ]
     assert [a.target for a in merge_by_target(detect(pods))] == ["demo/api", "demo/img"]
+
+
+def test_crash_loop_is_still_detected_between_backoff_waits():
+    """Real clusters flicker: the container is Terminated(Error) or Running, not Waiting(CrashLoopBackOff)."""
+    pod = make_pod("api-1", deploy="api", status="not_ready", restarts=4, terminated_reason="Error", phase="Running")
+    [a] = detect([pod])
+    assert a.rule == "crash_loop" and "keeps crashing (Error)" in a.details
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(restarts=2, terminated_reason="Error"),  # too few restarts to call it a loop
+        dict(restarts=9, terminated_reason="Completed"),  # clean exits are not crashes
+        dict(restarts=9, status="running"),  # currently healthy: flapping covers this, not crash_loop
+        dict(restarts=9, terminated_reason="Error", phase="Succeeded"),  # finished Job pod
+    ],
+)
+def test_repeated_restarts_that_are_not_a_crash_loop(kwargs):
+    base = dict(deploy="api", status="not_ready", phase="Running")
+    base.update(kwargs)
+    assert [a.rule for a in detect([make_pod("api-1", **base)])] == []

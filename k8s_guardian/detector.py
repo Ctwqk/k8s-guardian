@@ -59,7 +59,9 @@ class Detector:
         pending_timeout_seconds: int = 300,
         restart_flap_threshold: int = 5,
         replica_mismatch_grace_seconds: int = 120,
+        crash_loop_min_restarts: int = 3,
     ) -> None:
+        self.crash_min_restarts = crash_loop_min_restarts
         self.pending_timeout = pending_timeout_seconds
         self.flap_threshold = restart_flap_threshold
         self.mismatch_grace = replica_mismatch_grace_seconds
@@ -96,6 +98,17 @@ class Detector:
             actionable=actionable and pod.owner_kind == "Deployment" and bool(pod.deploy),
         )
 
+    def _crashed_repeatedly(self, pod: PodInfo) -> bool:
+        """Between back-off waits a crash-looping container is briefly *Terminated* (or Running again),
+        not *Waiting/CrashLoopBackOff*. Catch that window so detection does not flicker."""
+        reason = pod.terminated_reason or pod.last_terminated_reason
+        return (
+            pod.phase == "Running"
+            and pod.status != "running"
+            and pod.restarts >= self.crash_min_restarts
+            and reason not in ("", "Completed")
+        )
+
     def _pod_anomalies(self, pod: PodInfo, now: float, baseline: dict[str, int] | None) -> list[Anomaly]:
         out: list[Anomaly] = []
         unhealthy = pod.status != "running"
@@ -112,13 +125,16 @@ class Detector:
                     actionable=True,
                 )
             )
-        elif pod.waiting_reason == "CrashLoopBackOff":
+        elif pod.waiting_reason == "CrashLoopBackOff" or self._crashed_repeatedly(pod):
             out.append(
                 self._pod_anomaly(
                     pod,
                     "crash_loop",
                     Severity.HIGH,
-                    f"Pod {pod.name} in CrashLoopBackOff, {pod.restarts} restarts",
+                    f"Pod {pod.name} in CrashLoopBackOff, {pod.restarts} restarts"
+                    if pod.waiting_reason == "CrashLoopBackOff"
+                    else f"Pod {pod.name} keeps crashing ({pod.terminated_reason or pod.last_terminated_reason}), "
+                    f"{pod.restarts} restarts",
                     actionable=True,
                 )
             )

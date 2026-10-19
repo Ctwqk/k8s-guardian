@@ -88,6 +88,7 @@ class Guardian:
         self.detector = Detector(
             pending_timeout_seconds=settings.pending_timeout_seconds,
             restart_flap_threshold=settings.restart_flap_threshold,
+            crash_loop_min_restarts=settings.crash_loop_min_restarts,
             replica_mismatch_grace_seconds=settings.replica_mismatch_grace_seconds,
         )
         self._lock = asyncio.Lock()  # a manual /api/poll must not overlap the background loop

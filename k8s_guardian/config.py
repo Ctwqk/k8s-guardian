@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     # --- detection thresholds -------------------------------------------------------------
     pending_timeout_seconds: int = 300
     restart_flap_threshold: int = 5
+    crash_loop_min_restarts: int = Field(3, ge=1)  # "Error" exits seen this often count as a crash loop
     replica_mismatch_grace_seconds: int = 120
 
     # --- log collection -------------------------------------------------------------------

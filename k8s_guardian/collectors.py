@@ -19,7 +19,10 @@ from .policy import PolicyConfig
 LOG_NOISE_PATTERNS = re.compile(
     r"GET /health|GET /healthz|GET /readyz|GET /livez|"
     r"health.*200 OK|readiness.*200 OK|liveness.*200 OK|"
-    r'"GET /health HTTP/\d\.\d" 200',
+    r'"GET /health HTTP/\d\.\d" 200|'
+    # The guardian's own INFO lines quote the keywords below ("OOMKilled needs ..."); reading them
+    # back as evidence would be a feedback loop. Its WARNING/ERROR lines stay visible.
+    r"\bINFO guardian(?:\.\w+)?\b",
     re.IGNORECASE,
 )
 
