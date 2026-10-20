@@ -1,6 +1,6 @@
 # k8s-guardian
 
-[![CI](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml/badge.svg?branch=portfolio-upgrade)](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml?query=branch%3Aportfolio-upgrade)
+[![CI](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Ctwqk/k8s-guardian/actions/workflows/ci.yml?query=branch%3Amain)
 
 **A Kubernetes guardian that notices unhealthy workloads, triages their logs (rules or a two-tier LLM), and fixes only what an explicit policy allows. It is dry-run by default, rate-limited, and audits every decision.**
 
@@ -83,7 +83,7 @@ Gate outcomes (stored in the audit log's `result` column):
 Requires Python 3.11+ (tested on 3.11, 3.12, 3.13). No cluster or API key is needed for the first two steps.
 
 ```bash
-git clone --branch portfolio-upgrade https://github.com/Ctwqk/k8s-guardian.git && cd k8s-guardian
+git clone https://github.com/Ctwqk/k8s-guardian.git && cd k8s-guardian
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 
@@ -308,3 +308,7 @@ Started in March 2026 as a single `app.py` (FastAPI, `kubectl` subprocesses, and
 cluster). The October 2026 rewrite keeps the idea and flow (two-tier triage and decision, rule-based detection,
 controlled remediation, cooldown, rate limit) and moves them into the package above. One thing the old file could not
 do: its poll loop called a function that was never defined, so no poll ever completed.
+
+## License
+
+Code is released under the [MIT License](LICENSE).
